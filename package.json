@@ -1,1 +1,16 @@
-{"name":"xemxiec","version":"1.0.0","private":true,"main":"index.js","scripts":{"start":"node index.js","check":"node --check index.js"},"dependencies":{"express":"^4.21.2"},"engines":{"node":">=20"}}
+{
+  "name": "xemxiec",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
