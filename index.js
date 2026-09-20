@@ -1,0 +1,104 @@
+const express = require('express');
+const path = require('path');
+const movies = require('./ket_qua_1500_phim.json');
+const siteCategories = require('./site-categories.json');
+const app = express(); const PORT=Number(process.env.PORT||7000); const PAGE_SIZE=100;
+const clean=v=>String(v||'').replace(/\s*-\s*VLXX\.COM\s*$/i,'').trim(); const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const normUrl=v=>{try{const u=new URL(v);u.search='';u.hash='';return u.href}catch{return String(v||'')}}; const decodePart=s=>{try{return decodeURIComponent(String(s||''))}catch{return String(s||'')}};
+const asList=v=>Array.isArray(v)?v.map(clean).filter(Boolean):String(v||'').split(/[,|]/).map(clean).filter(Boolean); const uniq=a=>[...new Set(a.filter(Boolean))]; const actorKey=name=>norm(name).replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); const actorFileKey=name=>norm(name).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+const TRAILER_POSTER='https://xiec-fiaz.onrender.com/trailer-poster.png?v=930';
+const cats=(siteCategories.categories||[]).map(c=>({name:String(c.name||'').trim(),path:c.path||'',urls:new Set((c.page_urls||[]).map(normUrl))})); const cid=c=>`site_${c.path||Buffer.from(c.name).toString('base64url')}`; const cmap=new Map(cats.map(c=>[cid(c),c])); const genreOptions=cats.map(c=>c.name).filter(Boolean); const actorNames=uniq(movies.flatMap(m=>asList(m.actors))); const actorMap=new Map(actorNames.map(name=>[actorKey(name),name])); const commonExtra=[{name:'genre',isRequired:false,options:genreOptions},{name:'actor',isRequired:false},{name:'skip',isRequired:false},{name:'search',isRequired:false}]; const catalogs=[{type:'movie',id:'xemxiec_latest_movies',name:'🔥 PHIM SEX MỚI',extra:commonExtra},...cats.map(c=>({type:'movie',id:cid(c),name:c.name,extra:commonExtra}))];
+const manifest={id:'community.xemxiec.catalog',version:'1.0.0',name:'XemXiec',description:'XemXiec clean rebuild',resources:['catalog','meta','stream'],types:['movie','series'],idPrefixes:['movie_'],behaviorHints:{configurable:false},catalogs}; const categoryGenres=m=>cats.filter(c=>c.urls.has(normUrl(m.page_url))).map(c=>c.name); const movieGenres=m=>uniq([...asList(m.genres),...categoryGenres(m)]); const isVietsub=m=>m.vietsub===true||movieGenres(m).some(g=>norm(g)===norm('Phim sex Vietsub'));
+const sceneCache=new Map(),scenePending=new Map(),trailerCache=new Map(),trailerPending=new Map(),posterCache=new Map(),posterPending=new Map(),actorImageCache=new Map();
+function javTrailerBases(code){const x=clean(code).toLowerCase().match(/^([a-z]+)[-_ ]?(\d+)$/i);if(!x)return[];const p=x[1],n=String(Number(x[2]));const nums=uniq([n.padStart(5,'0'),n.padStart(4,'0'),n.padStart(3,'0')]);const dirs=uniq([`${p[0]}/${p.slice(0,3)}`,`${p[0]}/${p}`]);return nums.flatMap(num=>dirs.map(dir=>{const c=p+num;return{cid:c,base:`https://media.javtrailers.com/hlsvideo/freepv/${dir}/${c}`,imageBase:`https://images.javtrailers.com/digital/video/${c}`};}));}
+function directPoster(code){const x=javTrailerBases(code)[0];return x?`${x.imageBase}/${x.cid}ps.w360.webp`:null;}
+async function validImage(url,referer=''){try{const headers={accept:'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'};if(referer)headers.referer=referer;const r=await fetch(url,{redirect:'manual',headers,signal:AbortSignal.timeout(3500)});if(r.status!==200||!(r.headers.get('content-type')||'').startsWith('image/'))return false;const b=await r.arrayBuffer();return b.byteLength>1000;}catch{return false;}}
+async function discoverTrailer(code){const key=clean(code).toUpperCase();if(!key)return null;if(key==='PGD-932'){const out={url:'https://media.javtrailers.com/litevideo/freepv/p/pgd/pgd00932/pgd00932_dmb_w.mp4',cid:'pgd00932',imageBase:'https://images.javtrailers.com/digital/video/pgd00932'};trailerCache.set(key,out);return out;}if(trailerCache.has(key))return trailerCache.get(key);if(trailerPending.has(key))return trailerPending.get(key);const p=(async()=>{for(const x of javTrailerBases(code)){const url=`${x.base}/playlist.m3u8`;try{const r=await fetch(url,{redirect:'manual',headers:{'user-agent':'Mozilla/5.0','accept':'application/vnd.apple.mpegurl,application/x-mpegURL,*/*'},signal:AbortSignal.timeout(3500)});if(r.status!==200)continue;const text=await r.text();if(text.trimStart().startsWith('#EXTM3U')){const out={url,cid:x.cid,imageBase:x.imageBase};trailerCache.set(key,out);return out;}}catch{}}return null;})().finally(()=>trailerPending.delete(key));trailerPending.set(key,p);return p;}
+async function discoverPoster(code){const key=clean(code).toUpperCase();if(!key)return null;if(posterCache.has(key))return posterCache.get(key);if(posterPending.has(key))return posterPending.get(key);const p=(async()=>{for(const x of javTrailerBases(code)){const url=`${x.imageBase}/${x.cid}ps.w360.webp`;if(await validImage(url,'https://javtrailers.com/')){posterCache.set(key,url);return url;}}return null;})().finally(()=>posterPending.delete(key));posterPending.set(key,p);return p;}
+async function discoverScenes(code){const key=clean(code).toUpperCase();if(!key)return[];if(sceneCache.has(key))return sceneCache.get(key);if(scenePending.has(key))return scenePending.get(key);const p=(async()=>{for(const x of javTrailerBases(key)){const out=[];await Promise.all(Array.from({length:30},(_,j)=>j+1).map(async i=>{const u=`${x.imageBase}/${x.cid}jp-${i}.b800.webp`;if(await validImage(u,'https://javtrailers.com/'))out[i-1]=u;}));const exact=out.filter(Boolean);if(exact.length){sceneCache.set(key,exact);return exact;}}return[];})().finally(()=>scenePending.delete(key));scenePending.set(key,p);return p;}
+function descriptionOf(m){const d=clean(m.description||''),code=clean(m.code||'');if(!code||norm(d).includes(norm(code)))return d;return `Mã phim: ${code}${d?`\n\n${d}`:''}`;} function actorMetaLink(name){const explicit=clean(process.env.ADDON_MANIFEST_URL||''),renderHost=clean(process.env.RENDER_EXTERNAL_HOSTNAME||''),manifestUrl=explicit||(renderHost?`https://${renderHost}/manifest.json`:'');return manifestUrl?`stremio:///discover/${encodeURIComponent(manifestUrl)}/movie/xiec_latest_movies?actor=${encodeURIComponent(name)}`:`stremio:///search?search=${encodeURIComponent(name)}`;}
+function baseMeta(m,scenes=[],trailer=null,poster=null){const genres=movieGenres(m),actors=asList(m.actors),hasScenes=scenes.length>0;const meta={id:m.id,type:'movie',name:`${isVietsub(m)?'🇻🇳 ':''}${clean(m.title)}`,poster:poster||directPoster(m.code)||m.poster||undefined,background:hasScenes?scenes[0]:(m.background||m.backdrop||m.preview||undefined),description:descriptionOf(m),website:m.page_url||undefined,posterShape:'poster'};if(genres.length)meta.genres=genres;if(actors.length){meta.cast=actors;meta.links=actors.map(name=>({name,category:'actor',url:actorMetaLink(name)}));}if(m.country)meta.country=Array.isArray(m.country)?m.country.join(', '):clean(m.country);if(m.runtime||m.duration)meta.runtime=clean(m.runtime||m.duration);if(m.releaseInfo||m.year)meta.releaseInfo=String(m.releaseInfo||m.year);if(m.director)meta.director=asList(m.director);const released=/^\d{4}-\d{2}-\d{2}/.test(String(m.releaseInfo||''))?`${String(m.releaseInfo).slice(0,10)}T00:00:00.000Z`:'2026-01-01T00:00:00.000Z';const videos=[];if(trailer?.url)videos.push({id:`${m.id}:trailer`,title:'Trailer',released,season:1,episode:0,thumbnail:TRAILER_POSTER,overview:`${clean(m.code)} • Trailer`,available:true});scenes.forEach((thumbnail,i)=>videos.push({id:`${m.id}:image:${i+1}`,title:`Ảnh ${i+1}`,released,season:1,episode:i+1,thumbnail,overview:`${clean(m.code)} • Ảnh cảnh ${i+1}`,available:true}));if(videos.length)meta.videos=videos;return meta;}
+function extras(path='',query={}){const out={};for(const p of String(path||'').split('/')){if(!p.includes('='))continue;const[k,...rest]=p.split('=');out[k]=decodePart(rest.join('='));}for(const k of['skip','search','genre','actor'])if(query[k]!==undefined)out[k]=String(query[k]);return out;} function catalogItems(id){if(id==='xemxiec_latest_movies')return movies;const c=cmap.get(id);return c?movies.filter(m=>c.urls.has(normUrl(m.page_url))):[];} function catalogResponse(id,path,query){const e=extras(path,query);let items=catalogItems(id);if(e.genre){const c=cats.find(x=>x.name===e.genre);if(c)items=items.filter(m=>c.urls.has(normUrl(m.page_url)));}if(e.actor){const a=norm(e.actor);items=items.filter(m=>asList(m.actors).some(x=>norm(x)===a));}const q=norm(e.search||'');if(q)items=items.filter(m=>norm(`${m.title||''} ${m.description||''} ${m.code||''} ${(m.actors||[]).join(' ')}`).includes(q));const skip=Math.max(0,parseInt(e.skip||'0',10)||0);return{metas:items.slice(skip,skip+PAGE_SIZE).map(m=>baseMeta(m,sceneCache.get(clean(m.code).toUpperCase())||m.scene_images||[],trailerCache.get(clean(m.code).toUpperCase())||null,posterCache.get(clean(m.code).toUpperCase())||null))};}
+function mediaStatus(){const items=movies.map(m=>{const key=clean(m.code).toUpperCase(),scenes=sceneCache.get(key)||[];return{id:m.id,code:clean(m.code),title:clean(m.title),trailer:trailerCache.has(key),snap:scenes.length>0,snapCount:scenes.length,poster:posterCache.has(key),checking:trailerPending.has(key)||scenePending.has(key)||posterPending.has(key)};});return{version:'0.9.35',total:items.length,checked:items.filter(x=>x.trailer||x.snap||x.poster).length,withTrailer:items.filter(x=>x.trailer).length,withSnap:items.filter(x=>x.snap).length,withPoster:items.filter(x=>x.poster).length,checking:items.filter(x=>x.checking).length,items};}
+// Isolated Nuvio test manifest: not included in the production catalog/manifest.
+const TEST_PUBLIC_ID='test_ikisoda_22130_v2';
+const TEST_AV01_ID='test_av01_219656';
+const TEST_PUBLIC_URL='https://ikisoda.com/get_file/18/6caa1916977b0fd149f08040163816f4cb9b69ca0a/22000/22130/22130_720p.mp4/';
+const TEST_AV01_URL='https://www.av01.media/api/v1/videos/219656/manifest/master.m3u8?hb=a9f8cd4eb141de4f';
+const testManifest={id:'community.xiec.av01test',version:'1.2.0',name:'Xiec HLS TEST',description:'Isolated public HLS and AV01 diagnostic tests',resources:['catalog','meta','stream'],types:['movie'],idPrefixes:['test_'],catalogs:[{type:'movie',id:'xiec_ikisoda_test_v2',name:'Xiec IKISODA TEST'}]};
+const testItems=[
+ {id:TEST_PUBLIC_ID,type:'movie',name:'TEST IKISODA • 22130',poster:TRAILER_POSTER,description:'Ikisoda get_file redirect test; no cookies or Authorization are supplied.',posterShape:'poster'},
+ {id:TEST_AV01_ID,type:'movie',name:'TEST AV01 • ABF-385',poster:TRAILER_POSTER,description:'AV01 diagnostic sample. Kept isolated from the production catalog.',posterShape:'poster'}
+];
+app.get('/test/manifest.json',(req,res)=>res.json(testManifest));
+app.get('/test/catalog/movie/xiec_ikisoda_test_v2.json',(req,res)=>res.json({metas:testItems}));
+app.get('/test/meta/movie/:id.json',(req,res)=>res.json({meta:testItems.find(x=>x.id===req.params.id)||null}));
+app.get('/test/stream/movie/:id.json',(req,res)=>{
+ if(req.params.id===TEST_PUBLIC_ID)return res.json({streams:[{name:'Xiec IKISODA TEST',title:'IKISODA • 22130 • Range proxy',url:`${req.protocol}://${req.get('host')}/test/ikisoda/video.mp4`,behaviorHints:{notWebReady:true}}]});
+ if(req.params.id===TEST_AV01_ID)return res.json({streams:[{name:'Xiec AV01 TEST',title:'AV01 • ABF-385 • Diagnostic',url:`${req.protocol}://${req.get('host')}/test/av01/master.m3u8`,behaviorHints:{notWebReady:true}}]});
+ return res.json({streams:[]});
+});
+app.get('/test/ikisoda/video.mp4',async(req,res)=>{try{
+ const headers={'user-agent':'Mozilla/5.0','accept':'video/mp4,video/*,*/*'};
+ if(req.headers.range)headers.range=req.headers.range;
+ const r=await fetch(TEST_PUBLIC_URL,{redirect:'manual',headers,signal:AbortSignal.timeout(10000)});
+ console.log('[IKISODA-TEST]',r.status,'range',req.headers.range||'-','location',r.headers.has('location')?'yes':'no');
+ if(r.status>=300&&r.status<400){
+  const loc=r.headers.get('location')||'';
+  let u; try{u=new URL(loc,TEST_PUBLIC_URL)}catch{return res.status(502).send('bad upstream redirect')}
+  const keys=[...u.searchParams.keys()].map(k=>k.toLowerCase());
+  if(keys.some(k=>/^(?:time|cv|cv2|cv3|cv4|access_?token|token|auth|authorization|signature|sig|jwt|session|sessionid|cookie)$/.test(k))){
+   return res.status(502).json({error:'upstream returned protected/expiring redirect; stable public media URL required'});
+  }
+  return res.redirect(307,u.href);
+ }
+ res.status(r.status);
+ for(const h of ['content-type','content-length','content-range','accept-ranges','etag','last-modified']){const v=r.headers.get(h);if(v)res.set(h,v)}
+ res.set('Cache-Control','no-store');
+ if(!r.body)return res.end();
+ const reader=r.body.getReader(); while(true){const {done,value}=await reader.read();if(done)break;if(!res.write(Buffer.from(value)))await new Promise(ok=>res.once('drain',ok));}res.end();
+}catch(e){console.error('[IKISODA-TEST] error',e.message);if(!res.headersSent)res.status(502).send(e.message);}});
+const TEST_AV01_REFERER='https://www.av01.media/vn/video/219656/abf-385-lada';
+async function testHlsFetch(url){return fetch(url,{redirect:'follow',headers:{'user-agent':'Mozilla/5.0','referer':TEST_AV01_REFERER,'accept':'application/vnd.apple.mpegurl,application/x-mpegURL,*/*'},signal:AbortSignal.timeout(10000)});}
+function testProxyUrl(abs){return '/test/av01/fetch?u='+encodeURIComponent(abs);}
+function rewriteTestPlaylist(body,base){
+ return String(body).split(/\r?\n/).map(line=>{
+  const s=line.trim(); if(!s)return line;
+  const safe=u=>{try{const x=new URL(u,base);const keys=[...x.searchParams.keys()].map(k=>k.toLowerCase());if(keys.some(k=>/^(?:access_?token|token(?:_v2)?|auth|authorization|signature|sig|jwt|session|sessionid|cookie)$/.test(k)))return null;return testProxyUrl(x.href)}catch{return null}};
+  if(!s.startsWith('#'))return safe(s)||line;
+  return line.replace(/URI="([^"]+)"/g,(m,u)=>{const p=safe(u);return p?`URI="${p}"`:m});
+ }).join('\n');
+}
+app.get('/test/av01/master.m3u8',async(req,res)=>{try{const r=await testHlsFetch(TEST_AV01_URL);const body=await r.text();console.log('[AV01-TEST] master',r.status,new URL(r.url).pathname);if(!r.ok)return res.status(r.status).type('text/plain').send(body);res.set('Cache-Control','no-store');res.type('application/vnd.apple.mpegurl').send(rewriteTestPlaylist(body,r.url));}catch(e){console.error('[AV01-TEST] master error',e.message);res.status(502).json({error:e.message});}});
+app.get('/test/av01/fetch',async(req,res)=>{try{const u=String(req.query.u||'');if(!/^https:\/\//i.test(u))return res.status(400).send('bad url');const parsed=new URL(u),host=parsed.hostname.toLowerCase();if(!host.endsWith('av01.media')&&!host.endsWith('iw01.xyz'))return res.status(403).send('host blocked');const keys=[...parsed.searchParams.keys()].map(k=>k.toLowerCase());if(keys.some(k=>/^(?:access_?token|token(?:_v2)?|auth|authorization|signature|sig|jwt|session|sessionid|cookie)$/.test(k)))return res.status(403).send('protected media url');const r=await testHlsFetch(u);const ct=r.headers.get('content-type')||'';console.log('[AV01-TEST] fetch',r.status,host,parsed.pathname,ct);if(/mpegurl|m3u8/i.test(ct)||/\.m3u8(?:\?|$)/i.test(u)){const body=await r.text();res.status(r.status);res.set('Cache-Control','no-store');res.type('application/vnd.apple.mpegurl').send(rewriteTestPlaylist(body,r.url));return;}const buf=Buffer.from(await r.arrayBuffer());res.status(r.status);if(ct)res.type(ct);res.set('Cache-Control','no-store');res.send(buf);}catch(e){console.error('[AV01-TEST] fetch error',e.message);res.status(502).send(e.message);}});
+
+app.get('/trailer-poster.png',(req,res)=>{res.set('Cache-Control','public, max-age=86400');res.type('image/png');res.sendFile(path.join(__dirname,'ChatGPT Image 16_44_50 16 thg 9, 2026.png'));});
+app.get('/trailer-poster.webp',(req,res)=>{res.set('Cache-Control','public, max-age=31536000, immutable');res.type('image/webp');res.sendFile(path.join(__dirname,'trailer-poster.webp'));});
+app.get('/',(req,res)=>res.json({ok:true,service:'Xiec',version:'0.9.35',manifest:'/manifest.json'})); app.get('/manifest.json',(req,res)=>res.json(manifest)); app.get('/healthz',(req,res)=>res.json({ok:true,version:'0.9.35',movies:movies.length,sceneCache:sceneCache.size,trailers:trailerCache.size,posters:posterCache.size,actorImages:0,actors:actorNames.length})); app.get('/media-status.json',(req,res)=>res.json(mediaStatus())); app.get('/catalog/:type/:id.json',(req,res)=>res.json(['movie','series'].includes(req.params.type)?catalogResponse(req.params.id,'',req.query):{metas:[]})); app.get('/catalog/:type/:id/:path(*)',(req,res)=>res.json(['movie','series'].includes(req.params.type)?catalogResponse(req.params.id,String(req.params.path||'').replace(/\.json$/i,''),req.query):{metas:[]}));
+app.get('/meta/:type/:id.json',async(req,res)=>{if(!['movie','series'].includes(req.params.type))return res.json({meta:null});const baseId=String(req.params.id).split(':')[0];const m=movies.find(x=>x.id===baseId);if(!m)return res.json({meta:null});const actors=asList(m.actors);const [trailer,poster,liveScenes]=await Promise.all([m.code?discoverTrailer(m.code):null,m.code?discoverPoster(m.code):null,m.code?discoverScenes(m.code):[]]);const scenes=liveScenes.length?liveScenes:(Array.isArray(m.scene_images)?m.scene_images:[]);return res.json({meta:baseMeta(m,scenes,trailer,poster)});});
+
+function hasSensitiveMediaCredential(raw){
+  try{
+    const u=new URL(raw);
+    const keys=[...u.searchParams.keys()].map(k=>k.toLowerCase());
+    return keys.some(k=>/^(?:access_?token|token(?:_v2)?|auth|authorization|signature|sig|jwt|session|sessionid|cookie)$/.test(k));
+  }catch{return false}
+}
+async function publicStreamHealth(raw){
+  const url=String(raw||'');
+  if(!/^https?:\/\//i.test(url))return{ok:false,reason:'unsupported-url'};
+  if(hasSensitiveMediaCredential(url))return{ok:false,reason:'protected-url'};
+  try{
+    const r=await fetch(url,{redirect:'follow',headers:{'user-agent':'Mozilla/5.0','accept':'application/vnd.apple.mpegurl,application/x-mpegURL,video/*,*/*'},signal:AbortSignal.timeout(5000)});
+    if(r.status===401||r.status===403)return{ok:false,reason:'upstream-'+r.status};
+    if(!r.ok)return{ok:false,reason:'upstream-'+r.status};
+    const ct=(r.headers.get('content-type')||'').toLowerCase();
+    if(!/mpegurl|m3u8/.test(ct)&&!/\.m3u8(?:\?|$)/i.test(r.url))return{ok:true};
+    const body=await r.text();
+    if(!body.trimStart().startsWith('#EXTM3U'))return{ok:false,reason:'invalid-hls'};
+    return{ok:true};
+  }catch(e){return{ok:false,reason:e?.name==='TimeoutError'?'timeout':'fetch-failed'};}
+}
+
+app.get('/stream/:type/:id.json',async(req,res)=>{if(!['movie','series'].includes(req.params.type))return res.json({streams:[]});const rawId=String(req.params.id),baseId=rawId.split(':')[0];const m=movies.find(x=>x.id===baseId);if(!m)return res.json({streams:[]});if(rawId.includes(':image:'))return res.json({streams:[]});if(rawId.endsWith(':trailer')){const trailer=m.code?await discoverTrailer(m.code):null;return res.json({streams:trailer?.url?[{name:'XemXiec Trailer',title:`🎬 Trailer • ${clean(m.code)}`,url:trailer.url,behaviorHints:{notWebReady:true}}]:[]});}const streams=[],seen=new Set();for(const s of m.streams||[]){if(!s?.url||seen.has(s.url))continue;seen.add(s.url);streams.push({name:'XemXiec',title:`XemXiec • ${s.name||`Nguồn ${streams.length+1}`}`,url:s.url,behaviorHints:{notWebReady:true}});}if(m.manifest_url&&!seen.has(m.manifest_url)){seen.add(m.manifest_url);streams.push({name:'XemXiec',title:`XemXiec • ${streams.length?'Nguồn chính':'#1'}`,url:m.manifest_url,behaviorHints:{notWebReady:true}});}if(m.mp4_url&&!seen.has(m.mp4_url))streams.push({name:'XemXiec',title:'XemXiec • MP4',url:m.mp4_url,behaviorHints:{notWebReady:true}});console.log('[STREAM-REQ]',rawId,'sources='+streams.length);return res.json({streams});});
+async function warmOne(m){if(!m?.code)return;await Promise.allSettled([discoverTrailer(m.code),discoverPoster(m.code),discoverScenes(m.code)]);} async function warmMedia(){const batch=8;for(let i=0;i<movies.length;i+=batch){await Promise.allSettled(movies.slice(i,i+batch).map(warmOne));await new Promise(r=>setTimeout(r,100));}} app.listen(PORT,'0.0.0.0',()=>{console.log(`XemXiec addon v1.0.0 on ${PORT}`);console.log(`[STATUS] actorImages=OFF scenes=${sceneCache.size} trailers=${trailerCache.size} posters=${posterCache.size}`);});
