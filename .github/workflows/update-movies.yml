@@ -1,0 +1,69 @@
+name: Update XemXiec movies
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: xemxiec-daily-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout XemXiec
+        uses: actions/checkout@v4
+        with:
+          path: addon
+
+      - name: Checkout proven Xiec updater
+        uses: actions/checkout@v4
+        with:
+          repository: chuongnguyen89dn-ui/xiec-updater
+          path: updater
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install updater dependencies
+        working-directory: updater
+        run: npm install
+
+      - name: Install Chromium
+        working-directory: updater
+        run: npx playwright install --with-deps chromium
+
+      - name: Apply rich metadata parser
+        working-directory: updater
+        run: node patch-fast-meta.js
+
+      - name: Update newest movies into XemXiec root dataset
+        working-directory: updater
+        env:
+          SOURCE_URL: https://vlxx.phd/
+          XIEC_TOKEN: ${{ github.token }}
+          TARGET_REPO: chuongnguyen89dn-ui/XemXiec
+          TARGET_PATH: ket_qua_1500_phim.json
+          START_PAGE: '1'
+          MAX_PAGE: '1'
+          FAST_CONCURRENCY: '6'
+          ENRICH_RECENT: '30'
+          METADATA_PARSER_VERSION: '3'
+        run: node fast-full-scan.js
+
+      - name: Rebuild XemXiec category map
+        working-directory: updater
+        env:
+          SOURCE_URL: https://vlxx.phd/
+          XIEC_TOKEN: ${{ github.token }}
+          TARGET_REPO: chuongnguyen89dn-ui/XemXiec
+          CATEGORY_PATH: site-categories.json
+        run: node build-category-map.js
