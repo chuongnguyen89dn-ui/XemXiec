@@ -64,25 +64,31 @@ function listValue(v){return [...new Set(clean(v).split(/[,|/]|\s{2,}/).map(clea
 async function candidateDetail(page,code){
   const variants=[code,code.replace('-',''),code.replace(/([A-Z]+)(\d+)/,'$1-$2')];
 
-  // JAVSB detail URLs follow a stable pattern such as /jav/ntr-057-1-1.html.
+  // JAVSB detail URLs may be localized, e.g. /ko/jav/mida-493-1-1.html.
   const slug=code.toLowerCase().replace(/\s+/g,'').replace(/_/g,'-');
-  const direct=BASE+'/jav/'+slug+'-1-1.html';
-  try{
-    await page.goto(direct,{waitUntil:'domcontentloaded',timeout:30000});
-    await sleep(500);
-    const state=await page.evaluate((vars)=>{
-      const title=(document.title||'').toUpperCase();
-      const body=(document.body?.innerText||'').toUpperCase();
-      const url=location.href;
-      const ok=vars.some(v=>{
-        const x=v.toUpperCase();
-        return title.includes(x)||body.includes(x);
-      });
-      const notFound=/404|NOT FOUND|找不到|頁面不存在/i.test(title+' '+body);
-      return {ok,notFound,url};
-    },variants);
-    if(state.ok&&!state.notFound)return state.url;
-  }catch{}
+  const directUrls=[
+    BASE+'/ko/jav/'+slug+'-1-1.html',
+    BASE+'/en/jav/'+slug+'-1-1.html',
+    BASE+'/zh/jav/'+slug+'-1-1.html',
+    BASE+'/jav/'+slug+'-1-1.html'
+  ];
+  for(const direct of directUrls){
+    try{
+      await page.goto(direct,{waitUntil:'domcontentloaded',timeout:30000});
+      await sleep(500);
+      const state=await page.evaluate((vars)=>{
+        const normalize=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+        const title=document.title||'';
+        const body=document.body?.innerText||'';
+        const hay=normalize(title+' '+body);
+        const url=location.href;
+        const ok=vars.some(v=>hay.includes(normalize(v)));
+        const notFound=/404|NOT FOUND|找不到|頁面不存在|페이지를 찾을 수/i.test(title+' '+body);
+        return {ok,notFound,url,title};
+      },variants);
+      if(state.ok&&!state.notFound)return state.url;
+    }catch{}
+  }
 
   const urls=[
     BASE+'/?s='+encodeURIComponent(code),
@@ -165,6 +171,20 @@ async function parseDetail(page,code,url){
   const page=(await browser.pages())[0]||await browser.newPage();
   page.setDefaultNavigationTimeout(30000);
   const db=loadOut();
+
+  // Preflight against a publicly known JAVSB detail URL so we know parsing/connectivity works.
+  try{
+    const testUrl=BASE+'/ko/jav/mida-493-1-1.html';
+    await page.goto(testUrl,{waitUntil:'domcontentloaded',timeout:30000});
+    await sleep(500);
+    const test=await page.evaluate(()=>({title:document.title||'',body:(document.body?.innerText||'').slice(0,500),url:location.href}));
+    const ok=/MIDA\s*-?\s*493/i.test(test.title+' '+test.body);
+    console.log('[JAVSB] preflight',ok?'OK':'FAILED',test.url,'|',test.title);
+    if(!ok) console.log('[JAVSB] preflight body:',test.body.replace(/\s+/g,' ').slice(0,220));
+  }catch(e){
+    console.log('[JAVSB] preflight ERROR',e.message);
+  }
+
   let rows=MOVIES.filter(m=>m&&m.code);
   if(onlyCode)rows=rows.filter(m=>normCode(m.code)===normCode(onlyCode));
   else rows=rows.slice(start,start+limit);
