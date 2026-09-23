@@ -139,7 +139,7 @@ async function parseDetail(page,code,url){
   const browser=await puppeteer.launch({
     executablePath:chrome,headless,userDataDir:PROFILE,
     defaultViewport:{width:1280,height:800},
-    args:['--start-maximized']
+    args:['--start-maximized','--host-resolver-rules=MAP jav.sb 104.26.8.13']
   });
   const page=(await browser.pages())[0]||await browser.newPage();
   page.setDefaultNavigationTimeout(30000);
