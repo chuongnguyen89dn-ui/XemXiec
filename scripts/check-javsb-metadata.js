@@ -1,0 +1,10 @@
+const fs=require('fs');
+const path=require('path');
+const ROOT=path.resolve(__dirname,'..');
+const movies=require(path.join(ROOT,'ket_qua_1500_phim.json'));
+const meta=JSON.parse(fs.readFileSync(path.join(ROOT,'javsb_metadata.json'),'utf8'));
+const norm=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const by=new Map(Object.entries(meta).map(([k,v])=>[norm(k),v]));
+let hit=0;
+for(const m of movies)if(m.code&&by.has(norm(m.code)))hit++;
+console.log('[JAVSB MERGE] movies='+movies.length+' enriched='+hit+' metadata='+Object.keys(meta).length);
