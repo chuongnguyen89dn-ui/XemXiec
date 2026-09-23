@@ -17,6 +17,34 @@ const limit=Math.max(1,Number(arg('limit','3225'))||3225);
 const delay=Math.max(800,Number(arg('delay','1400'))||1400);
 const headless=has('headless');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function challengeState(page){
+  try{
+    return await page.evaluate(()=>{
+      const title=document.title||'';
+      const body=(document.body?.innerText||'').slice(0,3000);
+      const text=title+' '+body;
+      const challenge=/Chờ một chút|Just a moment|Thực hiện xác minh bảo mật|Performing security verification|Verify you are human|checking your browser|Ray ID/i.test(text);
+      return {challenge,title,body,url:location.href};
+    });
+  }catch{return {challenge:false,title:'',body:'',url:page.url()};}
+}
+async function waitForHumanVerification(page,maxMs=10*60*1000){
+  let st=await challengeState(page);
+  if(!st.challenge)return true;
+  console.log('[JAVSB] CLOUDFLARE CHALLENGE:',st.url,'|',st.title);
+  console.log('[JAVSB] Hãy hoàn tất xác minh trong cửa sổ Chromium. Script sẽ tự tiếp tục sau khi xác minh xong.');
+  const end=Date.now()+maxMs;
+  while(Date.now()<end){
+    await sleep(1500);
+    st=await challengeState(page);
+    if(!st.challenge){
+      console.log('[JAVSB] Cloudflare verification passed:',st.url,'|',st.title);
+      return true;
+    }
+  }
+  console.log('[JAVSB] Cloudflare verification timeout after',Math.round(maxMs/60000),'minutes.');
+  return false;
+}
 const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
 const normCode=s=>clean(s).toUpperCase().replace(/[^A-Z0-9]/g,'');
 function chromeCandidates(){
@@ -76,6 +104,7 @@ async function candidateDetail(page,code){
     try{
       await page.goto(direct,{waitUntil:'domcontentloaded',timeout:30000});
       await sleep(500);
+      if(!(await waitForHumanVerification(page))) return null;
       const state=await page.evaluate((vars)=>{
         const normalize=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
         const title=document.title||'';
@@ -110,6 +139,7 @@ async function candidateDetail(page,code){
     try{
       if(page.url()!==u)await page.goto(u,{waitUntil:'domcontentloaded',timeout:30000});
       await sleep(500);
+      if(!(await waitForHumanVerification(page))) return null;
       const found=await page.evaluate((vars)=>{
         const score=a=>{
           const t=((a.textContent||'')+' '+(a.getAttribute('href')||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -172,17 +202,21 @@ async function parseDetail(page,code,url){
   page.setDefaultNavigationTimeout(30000);
   const db=loadOut();
 
-  // Preflight against a publicly known JAVSB detail URL so we know parsing/connectivity works.
+  // Preflight against a publicly known JAVSB detail URL and pause for manual Cloudflare verification if needed.
   try{
     const testUrl=BASE+'/ko/jav/mida-493-1-1.html';
     await page.goto(testUrl,{waitUntil:'domcontentloaded',timeout:30000});
     await sleep(500);
+    const verified=await waitForHumanVerification(page);
     const test=await page.evaluate(()=>({title:document.title||'',body:(document.body?.innerText||'').slice(0,500),url:location.href}));
-    const ok=/MIDA\s*-?\s*493/i.test(test.title+' '+test.body);
+    const ok=verified&&/MIDA\s*-?\s*493/i.test(test.title+' '+test.body);
     console.log('[JAVSB] preflight',ok?'OK':'FAILED',test.url,'|',test.title);
     if(!ok) console.log('[JAVSB] preflight body:',test.body.replace(/\s+/g,' ').slice(0,220));
+    if(!ok) throw new Error('Preflight failed; không bắt đầu quét để tránh ghi NOT FOUND sai.');
   }catch(e){
     console.log('[JAVSB] preflight ERROR',e.message);
+    await browser.close();
+    process.exit(2);
   }
 
   let rows=MOVIES.filter(m=>m&&m.code);
