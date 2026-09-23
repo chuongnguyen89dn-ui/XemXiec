@@ -588,3 +588,37 @@ Manifest:
 
 ## 18. Tom tat mot dong
 XemXiec = movie #1/#2 that + fake Season 1 Trailer/Snap; loi kho nhat la Nuvio luu hero/episode state theo movie ID lam Trailer chiem nut Phat; fix dang hoat dong la reset public movie identity sang :v126; khong lap lai Trailer-ID revision 1.2.5; poster dang dung PNG goc user upload trong XemXiec va can tiep tuc xac minh Nuvio co render thumbnail Trailer hay khong.
+
+
+---
+
+## 19. Toi uu toc do load meta - 23/09/2026
+Truoc version 1.2.8, moi lan mo chi tiet phim:
+- /meta cho await dong thoi discoverTrailer(code) va discoverScenes(code);
+- discoverTrailer thu nhieu candidate HLS tuan tu;
+- discoverScenes co the kiem tra toi 30 anh Snap TUNG ANH MOT;
+- validImage khong co timeout cung.
+
+He qua:
+- neu JAVTrailers cham, mot request anh/playlist co the giu toan bo meta;
+- trang chi tiet Nuvio phai cho den khi scan xong;
+- cache chi giup tu lan sau, lan dau van cham.
+
+Fix version 1.2.8:
+- commit da71f5bc5a61b23dbe51004a02887d9c3a627d82
+- them fetchWithTimeout();
+- Trailer candidates duoc check song song;
+- moi Trailer fetch timeout 1600 ms;
+- moi image fetch timeout 1400 ms;
+- Snap duoc check theo batch 10 song song, thay vi 30 request tuan tu;
+- neu batch sau khong co anh thi dung som;
+- giu sceneCache, scenePending, trailerCache de lan sau nhanh;
+- KHONG thay doi PUBLIC_REV v126;
+- KHONG thay doi #1/#2;
+- KHONG thay doi fake Season 1 identity.
+
+Nguyen tac tu nay:
+- KHONG dua discoverScenes ve lai for-await tung anh;
+- moi fetch ra ngoai phai co timeout;
+- neu can quet nhieu asset, uu tien bounded parallelism + cache;
+- toi uu media discovery phai tach khoi logic main playback identity.
