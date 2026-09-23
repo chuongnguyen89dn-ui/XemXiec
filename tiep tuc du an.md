@@ -622,3 +622,43 @@ Nguyen tac tu nay:
 - moi fetch ra ngoai phai co timeout;
 - neu can quet nhieu asset, uu tien bounded parallelism + cache;
 - toi uu media discovery phai tach khoi logic main playback identity.
+
+
+---
+
+## 20. Cap nhat XemXiec 23/09/2026 - Trailer JUR-822 va poster JAVTrailers
+
+Trang thai moi:
+- PUBLIC_REV van giu v126; KHONG thay identity #1/#2.
+- JUR-822 code = JUR-822, cid = jur00822.
+- User tu lay va xac nhan link Trailer:
+  https://media.javtrailers.com/hlsvideo/freepv/j/jur/jur00822/jur00822hhb.m3u8
+- Link nay la named HLS variant, khac master playlist.m3u8. Khong duoc suy dien moi phim deu dung hau to hhb.
+- PGD-932 van giu direct MP4 fallback cu.
+- Snap JUR-822 da duoc user xac nhan co.
+
+Bai hoc resolver:
+- Khong hard-code mot mau Trailer duy nhat cho phim moi.
+- Can uu tien du lieu that cua JAVTrailers: contentId/API/video page/master HLS.
+- Neu gap master HLS, phai parse variant URI thuc te va validate; khong chi doan playlist.m3u8.
+- Named variant co the co hau to khac nhau (vi du hhb/mhb/mmb); resolver phai doc playlist/API, khong doan suffix.
+- Chi coi Trailer hop le sau khi playlist/media duoc validate.
+- Muc tieu lau dai: phim moi -> contentId/cid -> Trailer thuc -> variant thuc -> validate -> cache/persist.
+
+Poster:
+- Khoi phuc discoverPoster(): thu poster JAVTrailers theo candidate cid/imageBase va chi dung neu validImage() xac nhan.
+- Poster tu Trailer/JAVTrailers duoc uu tien khi tim thay; khong thay #1/#2.
+- Snap va poster phai dung cung logic CID da validate neu co the.
+
+Runtime/code moi:
+- commit f8e681de7dbc656625438afebee5b70a2c3346a9
+- version 1.3.8
+- message: Add verified JUR-822 trailer and validated JAVTrailers poster
+- Render deploy: dep-dapsoqad0e5s73a9t19g (da trigger; tai thoi diem ghi muc nay can xac minh LIVE va test Nuvio).
+
+Can lam tiep:
+1. Xac minh deploy 1.3.8 LIVE.
+2. Test JUR-822: #1/#2, Trailer play, Snap, poster.
+3. Sau khi JUR-822 on dinh, thay hard-code bang resolver parse HLS variant thuc de phim moi tu dong lay Trailer.
+4. Khong thay PUBLIC_REV v126.
+5. Khong dung cach proxy toan bo HLS neu direct variant phat duoc.
