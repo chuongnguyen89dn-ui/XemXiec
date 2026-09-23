@@ -1,1 +1,18 @@
-{"name":"xemxiec","version":"1.0.0","private":true,"scripts":{"start":"node index.js","check":"node --check index.js"},"dependencies":{"express":"^4.21.2"},"engines":{"node":">=20"}}
+{
+  "name": "xemxiec-nuvio-addon",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Nuvio/Stremio addon for XemXiec with isolated trailers and real player streams",
+  "main": "index-v097.js",
+  "scripts": {
+    "start": "node index-v097.js",
+    "check": "node --check index-v097.js && node --check scripts/smoke-nuvio.js",
+    "smoke": "node scripts/smoke-nuvio.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
