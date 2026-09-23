@@ -63,12 +63,33 @@ function textValue(lines,labels){
 function listValue(v){return [...new Set(clean(v).split(/[,|/]|\s{2,}/).map(clean).filter(Boolean))];}
 async function candidateDetail(page,code){
   const variants=[code,code.replace('-',''),code.replace(/([A-Z]+)(\d+)/,'$1-$2')];
+
+  // JAVSB detail URLs follow a stable pattern such as /jav/ntr-057-1-1.html.
+  const slug=code.toLowerCase().replace(/\s+/g,'').replace(/_/g,'-');
+  const direct=BASE+'/jav/'+slug+'-1-1.html';
+  try{
+    await page.goto(direct,{waitUntil:'domcontentloaded',timeout:30000});
+    await sleep(500);
+    const state=await page.evaluate((vars)=>{
+      const title=(document.title||'').toUpperCase();
+      const body=(document.body?.innerText||'').toUpperCase();
+      const url=location.href;
+      const ok=vars.some(v=>{
+        const x=v.toUpperCase();
+        return title.includes(x)||body.includes(x);
+      });
+      const notFound=/404|NOT FOUND|找不到|頁面不存在/i.test(title+' '+body);
+      return {ok,notFound,url};
+    },variants);
+    if(state.ok&&!state.notFound)return state.url;
+  }catch{}
+
   const urls=[
     BASE+'/?s='+encodeURIComponent(code),
     BASE+'/search?q='+encodeURIComponent(code),
     BASE+'/search/'+encodeURIComponent(code)
   ];
-  // First try site's own search box from home.
+  // Fallback: site's own search box from home.
   try{
     await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:30000});
     await sleep(700);
