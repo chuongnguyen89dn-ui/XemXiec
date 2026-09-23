@@ -10,3 +10,14 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run check
+      - name: Audit movie data
+        run: node scripts/audit-data.js
+      - name: Start addon
+        run: |
+          npm start > /tmp/xemxiec.log 2>&1 &
+          echo $! > /tmp/xemxiec.pid
+      - name: Nuvio smoke test
+        run: npm run smoke
+      - name: Server log
+        if: always()
+        run: cat /tmp/xemxiec.log || true
