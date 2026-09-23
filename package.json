@@ -6,11 +6,14 @@
   "main": "index-v097.js",
   "scripts": {
     "start": "node index-v097.js",
-    "check": "node --check index-v097.js && node --check scripts/smoke-nuvio.js",
-    "smoke": "node scripts/smoke-nuvio.js"
+    "check": "node --check index-v097.js && node --check scripts/smoke-nuvio.js && node --check scripts/javsb-browser-enrich.js && node --check scripts/check-javsb-metadata.js",
+    "smoke": "node scripts/smoke-nuvio.js",
+    "javsb": "node scripts/javsb-browser-enrich.js",
+    "javsb:check": "node scripts/check-javsb-metadata.js"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "puppeteer-core": "^24.16.0"
   },
   "engines": {
     "node": ">=20"
