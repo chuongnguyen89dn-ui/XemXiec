@@ -662,3 +662,42 @@ Can lam tiep:
 3. Sau khi JUR-822 on dinh, thay hard-code bang resolver parse HLS variant thuc de phim moi tu dong lay Trailer.
 4. Khong thay PUBLIC_REV v126.
 5. Khong dung cach proxy toan bo HLS neu direct variant phat duoc.
+
+
+---
+
+## 21. JUR-822 mat #1/#2 o nut Phat chinh - 24/09/2026
+
+Bang chung runtime:
+- movie_3225:v126 (MIKR-112): Nuvio goi main ID va server tra count=2: XemXiec #1 + #2.
+- movie_3226:v126 (JUR-822): dataset cung co 2 stream, nhung sau khi khoi phuc giao dien cu Nuvio chi goi :trailer, khong goi main ID.
+- Thu gan season/episode cho logical main da lam Nuvio goi main ID va server tra #1/#2, NHUNG no bien logical main thanh mot item trong day Trailer/Snap. User xac nhan #1/#2 khi do chi nam trong khu vuc Snap/episode, nut Phat chinh van khong dung. Cach nay da rollback va KHONG DUOC LAP LAI.
+
+Doi chieu spec:
+- Stremio Addon SDK quy dinh movie single-video co video ID = meta ID; meta.videos la optional cho movie.
+- XemXiec co fake meta.videos de giu giao dien Trailer/Snap, nen Nuvio xu ly movie nhu series (da xac nhan tu source Nuvio o muc 7).
+- Vi vay hero/main playback phu thuoc Nuvio state + defaultVideoId; dataset #1/#2 khong phai nguyen nhan.
+
+Fix muc tieu, khong doi giao dien:
+- Giu PUBLIC_REV mac dinh = v126 cho toan bo kho phim.
+- Chi reset identity JUR-822 vi identity movie_3226:v126 da bi Nuvio luu state sai:
+  MOVIE_ID_RESETS = {'movie_3226':'v126r1'}
+- publicMovieId() chi tra movie_3226:v126r1 cho JUR-822; cac phim khac van :v126.
+- Trailer van season 1 episode 0.
+- Snap 1/2/3 van episode 1/2/3.
+- Logical main KHONG co season/episode, nen khong chen vao thu tu Snap.
+- #1/#2 van lay tu dataset qua main stream route; khong thay crawler/source.
+
+Commit:
+- 316da78cf6d3116180b84e8ebb5d2aec9fc04b22
+- Reset only JUR-822 Nuvio playback identity without changing layout
+
+Render:
+- dep-daq7eq2d0e5s739h77e0
+- LIVE luc 2026-09-24T01:06:20Z.
+
+Bat buoc xac minh sau khi user mo JUR-822:
+- log phai co rawId=movie_3226:v126r1 (khong phai chi :trailer);
+- sau do STREAM_RES count=2, titles #1 | #2;
+- giao dien van Trailer -> Snap 1 -> Snap 2 -> Snap 3;
+- neu khong dat ca hai dieu kien tren thi KHONG coi la fix thanh cong.
