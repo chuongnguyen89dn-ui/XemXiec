@@ -68,4 +68,4 @@ jobs:
           CATEGORY_PATH: site-categories.json
         run: node build-category-map.js
 
-# run-now: 2026-09-23 fix new movie streams and actors
+# run-now: 2026-09-25 refresh new movies and backfill runtime
