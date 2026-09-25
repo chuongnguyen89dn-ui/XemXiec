@@ -59,6 +59,16 @@ jobs:
           METADATA_PARSER_VERSION: '3'
         run: node fast-full-scan.js
 
+      - name: Backfill missing runtime from real HLS duration
+        working-directory: updater
+        env:
+          XIEC_TOKEN: ${{ github.token }}
+          TARGET_REPO: chuongnguyen89dn-ui/XemXiec
+          TARGET_PATH: ket_qua_1500_phim.json
+          DURATION_LIMIT: '100'
+          DURATION_CONCURRENCY: '10'
+        run: node duration-probe.js
+
       - name: Rebuild XemXiec category map
         working-directory: updater
         env:
