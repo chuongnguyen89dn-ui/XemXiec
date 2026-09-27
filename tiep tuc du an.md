@@ -701,3 +701,12 @@ Bat buoc xac minh sau khi user mo JUR-822:
 - sau do STREAM_RES count=2, titles #1 | #2;
 - giao dien van Trailer -> Snap 1 -> Snap 2 -> Snap 3;
 - neu khong dat ca hai dieu kien tren thi KHONG coi la fix thanh cong.
+
+
+## 2026-09-27 - Toi uu workflow cap nhat hang ngay
+- Giu scanner phim moi chay hang ngay luc 00:00 UTC (~07:00 Viet Nam).
+- Giu runtime HLS backfill cho phim con thieu thoi luong.
+- Category map khong con rebuild moi ngay; chi rebuild vao Chu nhat (UTC) hoac khi workflow_dispatch thu cong.
+- Muc dich: giam GitHub Actions/Chromium scan khong can thiet va tranh tao thay doi/deploy Render vo ich.
+- Khong thay doi playback #1/#2, Trailer/Snap, PUBLIC_REV hay ID Nuvio.
+- Commit workflow: 549d3a4229db54e92c9eec334dfa7cd720cc27eb.
