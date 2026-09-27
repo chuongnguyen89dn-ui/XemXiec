@@ -15,7 +15,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     steps:
       - name: Checkout XemXiec
         uses: actions/checkout@v4
@@ -69,7 +69,21 @@ jobs:
           DURATION_CONCURRENCY: '10'
         run: node duration-probe.js
 
-      - name: Rebuild XemXiec category map
+      # Category pages are comparatively expensive and do not need rebuilding
+      # every day. Refresh them every Sunday; manual dispatch can also force it.
+      - name: Decide whether category map needs refresh
+        id: category_refresh
+        shell: bash
+        run: |
+          DOW="$(date -u +%u)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$DOW" = "7" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebuild XemXiec category map (weekly/manual only)
+        if: steps.category_refresh.outputs.run == 'true'
         working-directory: updater
         env:
           SOURCE_URL: https://vlxx.phd/
@@ -77,5 +91,3 @@ jobs:
           TARGET_REPO: chuongnguyen89dn-ui/XemXiec
           CATEGORY_PATH: site-categories.json
         run: node build-category-map.js
-
-# run-now: 2026-09-25 refresh new movies and backfill runtime
