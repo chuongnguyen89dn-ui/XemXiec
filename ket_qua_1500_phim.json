@@ -18,7 +18,7 @@
       "JAV"
     ],
     "country": "",
-    "runtime": "",
+    "runtime": "2h 00m",
     "manifest_url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s1/03230.vl",
     "manifest_detected_by": "direct_s1",
     "mp4_url": "",
@@ -32,7 +32,10 @@
         "name": "#2",
         "url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s2/03230.vl"
       }
-    ]
+    ],
+    "runtime_seconds": 7240,
+    "runtime_source": "stream_#1",
+    "runtime_method": "extinf"
   },
   {
     "id": "movie_3229",
@@ -53,7 +56,7 @@
       "JAV"
     ],
     "country": "",
-    "runtime": "",
+    "runtime": "2h 10m",
     "manifest_url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s1/03229.vl",
     "manifest_detected_by": "direct_s1",
     "mp4_url": "",
@@ -67,7 +70,10 @@
         "name": "#2",
         "url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s2/03229.vl"
       }
-    ]
+    ],
+    "runtime_seconds": 7822,
+    "runtime_source": "stream_#1",
+    "runtime_method": "extinf"
   },
   {
     "id": "movie_3228",
