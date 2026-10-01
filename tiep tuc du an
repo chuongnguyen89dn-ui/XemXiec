@@ -1,0 +1,12 @@
+TIEP TUC DU AN — XEMXIEC
+
+CAP NHAT 2026-10-02
+- Repo: chuongnguyen89dn-ui/XemXiec.
+- Muc tieu: he thong XemXiec/addon media va scanner, co backend Render.
+- Render hien co service XemXiec, Docker, free plan; URL live hien duoc ghi nhan: https://xemxiec-3dfe.onrender.com.
+- Trong chuoi test gan nhat, phan IkiSoda/Soda Link Watch gap van de playback/quyet dinh nguon. User van phat duoc tren web khac, nen khong duoc ket luan chi tu mot host/server la phim hong.
+- Huong moi nhat: xem xet bo catalog phim cu va quet lai tu trang chu https://ikisoda.com thay vi tiep tuc tin vao du lieu cu.
+- Truoc khi full rebuild phai kiem tra tinh trang site/CDN; khong xoa du lieu cu chi dua tren loi playback tam thoi.
+- Moi ket qua scan/playback phai ghi ro da xac minh hay chi la candidate; loi server/CDN phai tach khoi loi parser/resolver.
+- Moi thay doi code phai build/deploy, kiem tra Render status/log/runtime roi moi ghi thanh cong.
+- File nay la handoff dau tien; khong lap lai noi dung tu Toolchecklink.
