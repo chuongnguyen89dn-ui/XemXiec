@@ -18,7 +18,7 @@
       "JAV"
     ],
     "country": "",
-    "runtime": "",
+    "runtime": "2h 29m",
     "manifest_url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s1/03240.vl",
     "manifest_detected_by": "direct_s1",
     "mp4_url": "",
@@ -32,7 +32,10 @@
         "name": "#2",
         "url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s2/03240.vl"
       }
-    ]
+    ],
+    "runtime_seconds": 8955,
+    "runtime_source": "stream_#1",
+    "runtime_method": "extinf"
   },
   {
     "id": "movie_3239",
