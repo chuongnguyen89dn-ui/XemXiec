@@ -19,7 +19,7 @@
       "JAV"
     ],
     "country": "",
-    "runtime": "",
+    "runtime": "1h 58m",
     "manifest_url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s1/03244.vl",
     "manifest_detected_by": "direct_s1",
     "mp4_url": "",
@@ -33,7 +33,10 @@
         "name": "#2",
         "url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s2/03244.vl"
       }
-    ]
+    ],
+    "runtime_seconds": 7084,
+    "runtime_source": "stream_#1",
+    "runtime_method": "extinf"
   },
   {
     "id": "movie_3243",
@@ -55,7 +58,7 @@
       "Phim sex hoc sinh"
     ],
     "country": "",
-    "runtime": "",
+    "runtime": "2h 38m",
     "manifest_url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s1/03243.vl",
     "manifest_detected_by": "direct_s1",
     "mp4_url": "",
@@ -69,7 +72,10 @@
         "name": "#2",
         "url": "https://rr3---sn-8pxuuxa-i5ozr.gooqlevideo.com/manifest-s2/03243.vl"
       }
-    ]
+    ],
+    "runtime_seconds": 9484,
+    "runtime_source": "stream_#1",
+    "runtime_method": "extinf"
   },
   {
     "id": "movie_3242",
